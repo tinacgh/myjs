@@ -1,0 +1,383 @@
+<html>
+<style type="text/css">
+#content {
+    width:640px;
+}
+
+.letters {
+    font-family:Courier New,serif;
+    height:8px;
+    line-height:18px;
+    border-bottom:1px solid #CCC;
+    position:absolute;
+    width:640px;
+    text-align:right;
+}
+.letters > span {
+    float:right;
+    -webkit-transform: rotate(90deg);
+    text-align:right;
+}
+</style>
+
+<body>
+
+<!-- todo for v1.03 -->
+
+<br>
+<!-- v1.02 -->
+
+<!-- 
+FF1 Fanfare
+
+o4agag o5c co4b o5co4b b agf+g e
+o4agag o5c co4b o5co4b b aga o5c d
+
+Happy birthday
+o4ddedgf+. ddedag. dd o5d o4bgf+e .o5 cc o4bgag
+
+-->
+
+<!-- Idea:
+
+write individual lines as `format("231-0---125")` and use JavaScript
+to generate divs and spans
+
+BETTER IDEA: Convert "gabCDEFGABetc" to "---2", "--0-" etc then generate
+
+E -2-------
+A ---3-----
+D -----0---
+g -----0---
+
+* ignore spaces
+* auto-wrap every 30 notes/rests
+
+first, convert raw input to sequence of o3g, o3as, o3db, o5c, etc.
+then, use n2d to generate intermediate "src"
+
+o4d o3bgb o4dgbag o3b o4c#d.ddbagf#ef#g.gd o3bg
+
+-->
+
+
+<textarea id="notes" style="position:absolute; bottom:24px" rows="5" cols="80">
+o4g. o3b.. o4gf#ef# o3b o4ac o4agf#f#g
+o4gbo5d.edc o4bggaddbg
+</textarea>
+
+<textarea id="fullnotes" style="position:absolute; bottom:120px; display: none;" rows="5" cols="80"></textarea>
+
+<button id="btnGenerate" style="position:absolute; bottom:0px">Generate tablature</button>
+<button id="transposeUp" style="position:absolute; bottom:0px; left: 220px;">sharpen (#)</button>
+<button id="transposeDown" style="position:absolute; bottom:0px; left: 300px"">flatten (b)</button>
+
+<div id="output" style="background-color: white; position: absolute; right:0px;">
+</div>
+
+<div id="src" style="display: none;">
+</div>
+
+<div id="content">
+</div>
+
+
+
+<script type="text/javascript" src="jquery-min.js"></script>
+
+<script type="text/javascript">
+// n2d: note-to-digit
+// s: sharp (#)
+// r: rest
+
+var n2d = {
+
+o3r: "....",
+o4r: "....",
+o5r: "....",
+
+o3g: "0...",
+o3gs:"a...",
+o3a: "1...",
+o3as:"s...",
+o3b: "2...",
+
+o4c: "3...",
+o4cs:"e...",
+o4d: ".0..",
+o4ds:".a..",
+o4e: ".1..",
+o4f: ".s..",
+o4fs:".2..",
+o4g: ".3..",
+o4gs:".e..",
+o4a: "..0.",
+o4as:"..a.",
+o4b: "..1.",
+
+o5c: "..s.",
+o5cs:"..2.",
+o5d: "..3.",
+o5ds:"..e.",
+o5e: "...0",
+o5f: "...a",
+o5fs:"...1",
+o5g: "...s",
+o5gs:"...2",
+o5a: "...3",
+o5as:"...e",
+o5b: "...4"
+
+};
+
+// d2o: digit-to-output
+var d2o = {
+
+0: '0',
+1: '1',
+2: '2',
+3: '3',
+4: '4',
+a: '<u>1</u>',
+s: '<u>2</u>',
+d: '<u>3</u>',
+f: '<u>4</u>',
+q: '<s>1</s>',
+w: '<s>2</s>',
+e: '<s>3</s>',
+r: '<s>4</s>',
+E: 'E',
+A: 'A',
+D: 'D',
+G: 'G'
+
+}
+
+var lineHeader = {
+  l0: 'G ',
+  l1: 'D ',
+  l2: 'A ',
+  l3: 'E '
+}
+
+var trUp = {
+
+o3r: 'o3r',
+o4r: 'o4r',
+o5r: 'o5r',
+
+o3g: 'o3gs',
+o3gs:'o3a',
+o3a: 'o3as',
+o3as:'o3b',
+o3b: 'o4c',
+
+o4c: 'o4cs',
+o4cs:'o4d',
+o4d: 'o4ds',
+o4ds:'o4e',
+o4e: 'o4f',
+o4f: 'o4fs',
+o4fs:'o4g',
+o4g: 'o4gs',
+o4gs:'o4a',
+o4a: 'o4as',
+o4as:'o4b',
+o4b: 'o5c',
+
+o5c: 'o5cs',
+o5cs:'o5d',
+o5d: 'o5ds',
+o5ds:'o5e',
+o5e: 'o5f',
+o5f: 'o5fs',
+o5fs:'o5g',
+o5g: 'o5gs',
+o5gs:'o5a',
+o5a: 'o5as',
+o5as:'o5b',
+o5b: 'o5b'
+
+}
+
+var trDown = {
+
+o3r: 'o3r',
+o4r: 'o4r',
+o5r: 'o5r',
+
+o3g: 'o3g',
+o3gs:'o3g',
+o3a: 'o3gs',
+o3as:'o3a',
+o3b: 'o3as',
+
+o4c: 'o3b',
+o4cs:'o4c',
+o4d: 'o4cs',
+o4ds:'o4d',
+o4e: 'o4ds',
+o4f: 'o4e',
+o4fs:'o4f',
+o4g: 'o4fs',
+o4gs:'o4g',
+o4a: 'o4gs',
+o4as:'o4a',
+o4b: 'o4as',
+
+o5c: 'o4b',
+o5cs:'o5c',
+o5d: 'o5cs',
+o5ds:'o5d',
+o5e: 'o5ds',
+o5f: 'o5e',
+o5fs:'o5f',
+o5g: 'o5fs',
+o5gs:'o5g',
+o5a: 'o5gs',
+o5as:'o5a',
+o5b: 'o5as',
+
+}
+
+
+function generateTab() {
+
+$("#fullnotes").val("");
+$("#content").html("");
+$("#content").empty();
+$("#output").html("");
+$("#output").empty();
+$("#src").text("\n");
+
+function addToOutput(txt) {
+  $("#output").append(n2d[txt]);
+  $("#output").append("<br>");
+}
+
+function addToGrid(code, row) {
+  for(var ln = 0; ln < 4; ln++) {
+    grid[row][ln] += n2d[code][ln];
+  }
+  $("#fullnotes").val($("#fullnotes").val()+code+" ");
+}
+
+$("#notes").val($("#notes").val().replace(/\s+$/,"") + "\n");
+
+var notesLines = $("#notes").val().split("\n");
+
+var grid = new Array(notesLines.length);
+
+for(var i = 0; i < notesLines.length; i++) {
+  grid[i] = [];
+
+  for(var k = 0; k < 4; k++) {
+    grid[i][k] = lineHeader['l'+k];
+  }
+
+  for(var c = 0; c < notesLines[i].length; c++) {
+    if(notesLines[i][c] === ' ') {
+      // do nothing
+    } else if(notesLines[i][c] === 'o') {
+      octave = notesLines[i][c] + notesLines[i][++c];
+    } else if(notesLines[i][c+1] === '#' || notesLines[i][c+1] === '+' || notesLines[i][c+1] === 's') {
+      addToGrid(octave + notesLines[i][c++] + 's', i);
+    } else if(notesLines[i][c] === '.' || notesLines[i][c] === '-') {
+      addToGrid(octave + 'r', i);
+    } else {
+      addToGrid(octave + notesLines[i][c], i);
+    }
+  }
+
+  $("#fullnotes").val($("#fullnotes").val() + "\n");
+}
+
+// generate grid into #src
+for (var i = 0; i < grid.length - 1; i++) {
+  for (var j = 0; j < 4; j++) {
+    $("#src").append(grid[i][j] + "\n");
+  }
+  $("#src").append("\n");
+}
+
+$("#src").text($("#src").text().replace(/\s+$/,"")); 
+
+var srctxt = $("#src").text();
+var lines = srctxt.split("\n");
+
+var rows = (lines.length-1) / 5;
+
+var titleOffset = 30;
+var lineSpacing = 90;
+
+for(var row = 0; row < rows; row++) {
+  for(var line = 1; line <= 4; line++) {
+    topOffset = titleOffset + row*lineSpacing + line*16;
+
+    var curLine = (row*5) + line;
+    $("#content").append('<div class="letters" style="top:'+topOffset+'px" id="line'+curLine+'">\n');
+
+    for(var char = 0; char < lines[curLine].length; char++) {
+      curChar = lines[curLine][char];
+      if(curChar === '.' || curChar === ' ') {
+        $("#line"+curLine).append('<span>&nbsp;</span><span>&nbsp;</span>\n');
+      } else {
+        $("#line"+curLine).append('<span>'+d2o[curChar]+'</span><span>&nbsp;</span>\n');
+      }
+    }
+  }
+}
+
+$("#notes").val($("#fullnotes").val());
+
+
+}
+
+generateTab();
+
+$("#btnGenerate").click(function() {
+  generateTab();
+});
+
+$("#transposeUp").click(function() {
+  // transpose #notes
+
+  var newNotes = "";
+  var oldNotesLines = $("#notes").val().replace(/\s+$/,"").split("\n");
+
+  for (var line = 0; line < oldNotesLines.length; line++) {
+    lineNotes = oldNotesLines[line].replace(/\s+$/,"").split(" ");
+    for (var note = 0; note < lineNotes.length; note++) {
+      if(lineNotes[note] !== "\n") {
+        newNotes += trUp[lineNotes[note]] + " ";
+      }
+    }
+    newNotes += "\n";
+  }
+  $("#notes").val(newNotes);
+  generateTab();
+});
+
+$("#transposeDown").click(function() {
+  // transpose #notes
+
+  var newNotes = "";
+  var oldNotesLines = $("#notes").val().replace(/\s+$/,"").split("\n");
+
+  for (var line = 0; line < oldNotesLines.length; line++) {
+    lineNotes = oldNotesLines[line].replace(/\s+$/,"").split(" ");
+    for (var note = 0; note < lineNotes.length; note++) {
+      if(lineNotes[note] !== "\n") {
+        newNotes += trDown[lineNotes[note]] + " ";
+      }
+    }
+    newNotes += "\n";
+  }
+  $("#notes").val(newNotes);
+  generateTab();
+});
+
+</script>
+
+</body>
+</html>
